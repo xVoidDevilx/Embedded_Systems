@@ -18,27 +18,27 @@
 /* Driver configuration */
 #include "ti_drivers_config.h"
 
-#define MAXLEN 125  // 1kb of data per string. 125 bytes
+#define MAXLEN 128  // 128 B of data per string.
 // -------------------------------------------------------------------\\
 
 //Define command structures
 typedef struct CMD {
-    const char name[MAXLEN>>2];         // command name | 31 B of space/cmd
-    const char description[MAXLEN>>1];  // command help menu text | 62 B of space/cmd
+    const char name[MAXLEN>>2];         // command name | 32 B of space / cmd
+    const char description[MAXLEN>>1];  // command help menu text | 64 B of space / cmd
 } CMD;
 // -------------------------------------------------------------------\\
 
 //Define error struct - future implementations
 typedef struct ERR {
-    const int32_t code;             // error code:      4 B
-    const char msg[MAXLEN];         // error message: 125 B
+    const int32_t code;             // error code:      4 B / Error type
+    const char msg[MAXLEN];         // error message: 128 B / Error type
 } ERROR;
 // -------------------------------------------------------------------\\
 
 //Define global variables | working data - Increases memory efficiency
 typedef struct GLOBAL {
-    char TERMINAL_IN[MAXLEN];       // Allocate 125 B
-    char TERMINAL_OUT[MAXLEN<<2];   // Allocate 500 B
+    char TERMINAL_IN[MAXLEN];       // Allocate 128 B
+    char TERMINAL_OUT[MAXLEN<<2];   // Allocate 512 B
     UART_Handle uart;               // uart handler global
     UART_Params uartParams;         // configure uart
     uint32_t ERRORS;                // The bigger this gets, the more humbled I become
