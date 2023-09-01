@@ -70,8 +70,8 @@ void GlobalConfig(GLOBAL *obj){
 */
 void PrintAllCommands(char* OUTPUT, size_t buffer_size, const CMD COMMANDS[], size_t num_cmds) {
     //Define local vars
-    const char MSG[] = "\n\rCommands currently supported:\r\n\t";
-    size_t space_left = buffer_size - strlen(MSG) - 2; // Account for newline and null-terminator
+    const char MSG[] = "\n\rCommands currently supported:\n\r";
+    int32_t space_left = buffer_size - strlen(MSG) - 2; // Account for newline and null-terminator
 
     if (space_left <= 1) {
         OUTPUT[0] = '\0';
@@ -82,17 +82,15 @@ void PrintAllCommands(char* OUTPUT, size_t buffer_size, const CMD COMMANDS[], si
     //itterate through commands and add them to the buffer
     size_t i;
     for (i = 0; i < num_cmds && space_left > 0; i++) {
-        int chars_written = snprintf(OUTPUT + strlen(OUTPUT), space_left,
-                                     "%-8s | %s\r\n\t",
+        int32_t chars_written = snprintf(OUTPUT + strlen(OUTPUT), space_left,
+                                     "\t%-8s | %s\n\r",
                                      COMMANDS[i].name,
                                      COMMANDS[i].description);
 
-        space_left = (chars_written >= 0 && (size_t)chars_written < space_left) ? space_left - chars_written : 0;
+        space_left = (chars_written >= 0 && chars_written < space_left) ? space_left - chars_written : 0;
     }
-
-    // Ensure null-termination & return
-    OUTPUT[buffer_size - space_left] = '\r';
-    OUTPUT[buffer_size - space_left - 1] = '\0';
+    // Ensure null-termination
+    OUTPUT[buffer_size - space_left] = '\0';
 }
 
 /*

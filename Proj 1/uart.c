@@ -24,8 +24,8 @@ void *mainThread(void *arg0){
     const CMD COMMANDS[] = {aboutCMD, helpCMD};
 
     //init variables
-    memset(glo.TERMINAL_IN, 0, strlen(glo.TERMINAL_IN));
-    memset(glo.TERMINAL_OUT, 0, strlen(glo.TERMINAL_OUT));
+    memset(glo.TERMINAL_IN, 0, sizeof(glo.TERMINAL_IN));
+    memset(glo.TERMINAL_OUT, 0, sizeof(glo.TERMINAL_OUT));
 
     char input, *token;
     size_t i=0;
@@ -33,7 +33,7 @@ void *mainThread(void *arg0){
 
     GlobalConfig(&glo);
 
-    UART_write(glo.uart, echoPrompt, sizeof(echoPrompt));
+    UART_write(glo.uart, echoPrompt, strlen(echoPrompt));
 
     for (;;) {
         //Echo typing
@@ -61,12 +61,12 @@ void *mainThread(void *arg0){
             //-about command
             case 0:
                 PrintAbout(glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
-                UART_write(glo.uart, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
+                UART_write(glo.uart, glo.TERMINAL_OUT, strlen(glo.TERMINAL_OUT));
                 break;
             //-help command
             case 1:
                 PrintAllCommands(glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT), COMMANDS, sizeof(COMMANDS)/sizeof(COMMANDS[0]));
-                UART_write(glo.uart, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
+                UART_write(glo.uart, glo.TERMINAL_OUT, strlen(glo.TERMINAL_OUT));
                 break;
             //unsupported command
             default:
@@ -88,7 +88,7 @@ void *mainThread(void *arg0){
             }
             else{
                 PrintERR(glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT), BFR_OVF);
-                UART_write(glo.uart, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
+                UART_write(glo.uart, glo.TERMINAL_OUT, strlen(glo.TERMINAL_OUT));
                 memset(glo.TERMINAL_IN, 0, sizeof(glo.TERMINAL_IN));
                 i =0;
             }
