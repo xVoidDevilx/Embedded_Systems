@@ -6,12 +6,14 @@
  *      Purpose: Define commands that will be used on the MSP432 for the Embedded Systems course @ TTU
  */
 #include <string.h>
+#include <stdlib.h>
 #include "HEAD.h"
 
 // -------------------------------------------------------------------\\
 
 // Global object
 GLOBAL glo = {
+       .Integrity=0xB00B1E5,    // Mature, right?
        .TERMINAL_IN ="",
        .TERMINAL_OUT = ""
 };
@@ -32,6 +34,14 @@ CMD helpCMD = {
 CMD printCMD = {
     .name = "-print",
     .description = "Echo a string back to console."
+};
+
+CMD memrCMD = {
+    .name = "-memr",
+    .description = "Read memory contents and echo to terminal\n\r"
+            "\t\t\t0x00000000-0x000FFFFF: FLASH\n\r"
+            "\t\t\t0x20000000-0x2003FFFF: SRAM\n\r"
+            "\t\t\t0x40000000-0x44054FFF: Peripherals"
 };
 // -------------------------------------------------------------------\\
 
@@ -120,6 +130,12 @@ void HelpCMD(char* INPUT, char* OUTPUT, size_t buffer_size, const CMD COMMANDS[]
             // Call the ReturnCommandIndex function for the modified token
             i = ReturnCommandIndex(temp, COMMANDS, num_cmds);
 
+            // Ensure i exists
+            if (i>=num_cmds){
+                // Get the next token
+                INPUT = strtok(NULL, " -\n\r");
+                continue;
+            }
             // Add the command information into the output
             int32_t chars_written = snprintf(OUTPUT + strlen(OUTPUT), space_left,
                                                      "\t%-8s | %s\n\r",
@@ -127,10 +143,10 @@ void HelpCMD(char* INPUT, char* OUTPUT, size_t buffer_size, const CMD COMMANDS[]
                                                      COMMANDS[i].description);
             space_left = (chars_written >= 0 && chars_written < space_left) ? space_left - chars_written : 0;
             // Get the next token
-            INPUT = strtok(NULL, " \n\r");
+            INPUT = strtok(NULL, " -\n\r");
         }
         // Ensure null-termination
-        OUTPUT[buffer_size - 1] = '\0';
+        OUTPUT[buffer_size - 1] = 0;
     }
 }
 
@@ -156,7 +172,7 @@ void PrintAbout(char* OUTPUT, size_t buffer_size) {
     int chars_made = snprintf(OUTPUT, space_left, "\r\n\tEngineer: %20s"
                             "\n\r\tDate | Time: %13s | %s"
                             "\n\r\tVersion: %9.1f"
-                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.1, 1,"Get Started");
+                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.2, 2,"Get Started");
 
     // Ensure null-termination
     OUTPUT[buffer_size - space_left - (size_t)chars_made-1] = '\0';
@@ -190,4 +206,56 @@ void PrintCMD (char *buffer, char result[], size_t len) {
     strncat(result, "\n\r", len);
     //ensure null termination
     result[len-1] = 0;
+}
+
+/* Memr command called */
+void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) {
+    uint32_t memaddr;   // actual memory location
+    int32_t value;      // value in address
+    char *ptr;          // string part of addrHex
+    OUTPUT[bufflen - 1] = 0;    // ensure null
+    const char MSG[] = "MEMR:\n\r";
+    int32_t space_left = bufflen - strlen(OUTPUT) - strlen(MSG);
+
+    if (addrHex == NULL) {
+        memaddr = 0; // default memspace
+    }
+
+    memaddr = 0xFFFFFFF0 & strtol(addrHex, &ptr, 16);   // MASK LS bits to print 16 bytes of data
+    if (memaddr > 0x100000 && memaddr < 0x20000000) goto MEMERR;    // too high for flash, too low for SRAM
+    else if (memaddr > 0x20040000 && memaddr < 40000000) goto MEMERR;  // too high for SRAM too low for peripheral
+    else if (memaddr > 0x44055000) goto MEMERR; // above peripherals
+    else {
+        if (space_left < 3) {
+            strncpy(OUTPUT, "\n\r\0", 3);   // newline
+            ERRCounter++;
+            return;
+        }
+        strncpy(OUTPUT, MSG, space_left);   // copy the message into the output
+        int i;
+
+        // Single loop to add addresses and values
+        for (i = 0; i <= 0xF; i++) {
+            // Add the address to the OUTPUT string if there's enough space
+            space_left = bufflen - strlen(OUTPUT);
+            if (space_left <= 0) {
+                break;  // No more space in the OUTPUT buffer
+            }
+            snprintf(OUTPUT + strlen(OUTPUT), space_left, "Address 0x%08X: ", memaddr + i);
+
+            // Add the value to the same line
+            space_left = bufflen - strlen(OUTPUT);
+            if (space_left <= 0) {
+                break;  // No more space in the OUTPUT buffer
+            }
+            value = *(int32_t *)(memaddr + i); // Get memaddr + i location, type cast to 32-bit
+            snprintf(OUTPUT + strlen(OUTPUT), space_left, "%08X\n\r", value);
+        }
+        return;
+
+    MEMERR:
+        ERRCounter++;
+        addrHex[16] = 0;    // ensure null termination of Hex value
+        snprintf(OUTPUT, bufflen, "Hex address %s out of allowable range. Use -help memr to see range.\n\r", addrHex);
+    }
 }

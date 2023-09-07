@@ -2,7 +2,7 @@
  * @file uartecho.c
  * @author Silas Rodriguez
  * @brief "Hello World" for MSP432
- * @version 0.1
+ * @version 0.2
  * @date 2023-08-26
  */
 
@@ -21,7 +21,7 @@
 void *mainThread(void *arg0){
 
     // Supported functions array - keep this updated
-    const CMD COMMANDS[] = {aboutCMD, helpCMD, printCMD};
+    const CMD COMMANDS[] = {aboutCMD, helpCMD, printCMD, memrCMD};
 
     //init variables
     memset(glo.TERMINAL_IN, 0, sizeof(glo.TERMINAL_IN));
@@ -71,9 +71,14 @@ void *mainThread(void *arg0){
                     break;
                 //-print command
                 case 2:
-                    token = strtok(NULL, " \n\r");//move to rest of the string
+                    token = strtok(NULL, " \n\r"); //update the token
                     PrintCMD(token, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
                     UART_write(glo.uart, glo.TERMINAL_OUT, strlen(glo.TERMINAL_OUT));
+                    break;
+                case 3:
+                    token = strtok(NULL, " \n\r"); //update the token
+                    MemrCMD(token, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT),glo.ERRORS);
+                    UART_write(glo.uart, glo.TERMINAL_OUT, sizeof(glo.TERMINAL_OUT));
                     break;
                 //unsupported/empty command
                 default:
