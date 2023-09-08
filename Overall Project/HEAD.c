@@ -202,7 +202,7 @@ void PrintAbout(char* OUTPUT, size_t buffer_size) {
     int chars_made = snprintf(OUTPUT, space_left, "\r\n\tEngineer: %20s"
                             "\n\r\tDate | Time: %13s | %s"
                             "\n\r\tVersion: %9.1f"
-                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.2, 2,"Get Started");
+                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.2, 2,"Expanding the instruction base");
 
     // Ensure null-termination
     OUTPUT[buffer_size - space_left - (size_t)chars_made-1] = '\0';
@@ -294,3 +294,5 @@ void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) 
         snprintf(OUTPUT, bufflen, "Hex address %s out of allowable range. Use -help memr to see range.\n\r", addrHex);
     }
 }
+
+
