@@ -18,7 +18,10 @@
 /* Driver configuration */
 #include "ti_drivers_config.h"
 
+//Macros
 #define MAXLEN 256  // 256 B of data per string.
+#define BACKSPACE 127   //ascii for backspace on putty
+
 // -------------------------------------------------------------------\\
 
 //Define command structures
@@ -53,7 +56,8 @@ void PrintAbout(char* OUTPUT, size_t buffer_size);
 void PrintERR(char* OUTPUT, size_t buffer_size, ERROR err);
 void GlobalConfig(GLOBAL *obj);
 void PrintCMD (char buffer[], char result[], size_t len);
-void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen,uint32_t ERRCounter);
+void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter);
+char ProcInp(char input, size_t bufflen, GLOBAL *glo);
 // -------------------------------------------------------------------\\
 
 //External variables

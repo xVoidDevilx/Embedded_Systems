@@ -79,11 +79,41 @@ void GlobalConfig(GLOBAL *obj){
         while (1);
     }
 }
+/* Process inputs, update global buffers, and return the signal to continue the program*/
+char ProcInp(char input, size_t bufflen, GLOBAL *glo){
+    glo->TERMINAL_IN[--bufflen] = 0;  //ensure null terminator
+    int32_t i = (int32_t) strlen(glo->TERMINAL_IN); //get the position of the latest character, not the cursor
+    i = i>0 ? i:0;  //ensure 0 or more
+
+    // Switch based on input
+    switch (input) {
+        case '\b':
+        case BACKSPACE:
+            glo->TERMINAL_IN[--i] = 0;
+            return 'n';
+        case '\n':
+        case '\r':
+            glo->TERMINAL_IN[++i] = 0;    //terminate the buffer here
+            return 'y';
+        default:
+            if (i < bufflen - 3) glo->TERMINAL_IN[i] = input;
+            else {
+                glo->ERRORS++;
+                strncpy(glo->TERMINAL_OUT, "\n\rERROR: STR OVF\n\r", sizeof(glo->TERMINAL_OUT));
+                memset(glo->TERMINAL_IN, 0, sizeof(glo->TERMINAL_IN));
+                return 'e';
+            }
+            return 'n';
+    }
+}
+
 /*
     modifies OUTPUT with formatted string of all the supported commands
 */
 void HelpCMD(char* INPUT, char* OUTPUT, size_t buffer_size, const CMD COMMANDS[], size_t num_cmds) {
     size_t i;
+    INPUT = strtok(NULL, " -\n\r"); //update input token - Protected because -help MUST be in the string currently
+
     // process just -help
     if (INPUT == NULL) {
         //Define local vars
@@ -192,6 +222,9 @@ void PrintERR(char* OUTPUT, size_t buffer_size, ERROR err) {
 
 /* Print command called */
 void PrintCMD (char *buffer, char result[], size_t len) {
+
+    buffer = strtok(NULL, " \n\r"); //update the token - Protected because Print was here
+
     while(buffer != NULL) {
         //exit with max print
         if (strlen(buffer) > len - strlen(result) - 3){ //include \n \r 0
@@ -210,6 +243,8 @@ void PrintCMD (char *buffer, char result[], size_t len) {
 
 /* Memr command called */
 void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) {
+    addrHex = strtok(NULL, " \n\r"); //update the token after -memr
+
     uint32_t memaddr;   // actual memory location
     int32_t value;      // value in address
     char *ptr;          // string part of addrHex
