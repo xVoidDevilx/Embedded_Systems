@@ -270,7 +270,7 @@ void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) 
         int i;
 
         // Single loop to add addresses and values
-        for (i = 0; i <= 0xF; i++) {
+        for (i = 0; i <= 0xF; i+=4) {
             // Add the address to the OUTPUT string if there's enough space
             space_left = bufflen - strlen(OUTPUT);
             if (space_left <= 0) {
