@@ -1,106 +1,127 @@
 /*
- * HEAD.c
+ * chf.c
  *
- *  Created on: Aug 27, 2023
- *      Author: Silas Rodriguez
- *      Purpose: Define commands that will be used on the MSP432 for the Embedded Systems course @ TTU
+ *  Created on: Sep 11, 2023
+ *      Author: silas
  */
+#include <stdint.h>
+#include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
-#include "HEAD.h"
+/* Driver Header files */
+#include <ti/drivers/GPIO.h>
+#include <ti/drivers/UART.h>
+#include "ti_drivers_config.h"
+/* My custom header file */
+#include "chf.h"
 
-// -------------------------------------------------------------------\\
 
-// Global object
-GLOBAL glo = {
-       .Integrity=0xB00B1E5,    // Mature, right?
-       .TERMINAL_IN ="",
-       .TERMINAL_OUT = ""
+/*   Global Struct Declaration   */
+global glo = {
+              .integrity = 0xB00B1E5,   //mature, right?
+              .terminal_in = "",
+              .terminal_out = ""
 };
 
-// -------------------------------------------------------------------\\
-
-// Commands + descriptions
-CMD aboutCMD = {
+/* Command Declarations */
+cmd aboutCMD = {
     .name = "-about",
     .description = "Get information about the program currently running."
 };
 
-CMD helpCMD = {
+cmd helpCMD = {
     .name = "-help",
     .description = "Display available commands & their descriptions."
 };
 
-CMD printCMD = {
+cmd printCMD = {
     .name = "-print",
     .description = "Echo a string back to console."
 };
 
-CMD memrCMD = {
+cmd memrCMD = {
     .name = "-memr",
     .description = "Read memory contents and echo to terminal\n\r"
             "\t\t\t0x00000000-0x000FFFFF: FLASH\n\r"
             "\t\t\t0x20000000-0x2003FFFF: SRAM\n\r"
             "\t\t\t0x40000000-0x44054FFF: Peripherals"
 };
-// -------------------------------------------------------------------\\
-
-// Error Objects
-ERROR BFR_OVF = {
-      .code = -69,
-      .msg = "String Overflow - Buffer Dumped"
+/* Error handlers */
+error BFROVF = {
+     .id = 0,
+     .msg = "Times the input buffer has overflowed",
+     .count = 0
 };
-// -------------------------------------------------------------------\\
 
-// Supporting functions
+error BADCMD = {
+    .id = 1,
+    .msg = "Times an unknown command was entered",
+    .count = 0
+};
 
-/*
- *  Global obj configurator that sets up handlers & other data
- */
-void GlobalConfig(GLOBAL *obj){
+error BADMEM = {
+    .id = 2,
+    .msg = "Attempted bad memory reads",
+    .count = 0
+};
+
+/*   Function Implementations   */
+
+// config the global struct
+void GlobalConfig(global *glo){
+
     /* Call driver init functions */
     GPIO_init();
     UART_init();
+
     /* Configure the LED pin */
     GPIO_setConfig(CONFIG_GPIO_LED_0, GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW);
+
     /* Turn on user LED */
     GPIO_write(CONFIG_GPIO_LED_0, CONFIG_GPIO_LED_ON);
 
     /* Create a UART with data processing off. */
-    UART_Params_init(&obj->uartParams);
-    obj->uartParams.writeDataMode = UART_DATA_BINARY;
-    obj->uartParams.readDataMode = UART_DATA_BINARY;
-    obj->uartParams.readReturnMode = UART_RETURN_FULL;
-    obj->uartParams.baudRate = 115200;
-    obj->uart = UART_open(CONFIG_UART_0, &obj->uartParams);
+    UART_Params_init(&(glo->uartParams));
+    glo->uartParams.writeDataMode = UART_DATA_BINARY;
+    glo->uartParams.readDataMode = UART_DATA_BINARY;
+    glo->uartParams.readReturnMode = UART_RETURN_FULL;
+    glo->uartParams.baudRate = 115200;
 
-    if (obj->uart == NULL) {
+    glo->uart = UART_open(CONFIG_UART_0, &glo->uartParams);
+
+    if (glo->uart == NULL) {
         /* UART_open() failed */
         while (1);
     }
+    //Organize Commands
+    glo->COMMANDS[0] = aboutCMD;
+    glo->COMMANDS[1] = helpCMD;
+    glo->COMMANDS[2] = printCMD;
+    glo->COMMANDS[3] = memrCMD;
 }
+
 /* Process inputs, update global buffers, and return the signal to continue the program*/
-char ProcInp(char input, size_t bufflen, GLOBAL *glo){
-    glo->TERMINAL_IN[--bufflen] = 0;  //ensure null terminator
-    int32_t i = (int32_t) strlen(glo->TERMINAL_IN); //get the position of the latest character, not the cursor
+char ProcInp(char input, size_t bufflen, global *glo){
+    glo->terminal_in[--bufflen] = 0;  //ensure null terminator
+    int32_t i = (int32_t) strlen(glo->terminal_in); //get the position of the latest character, not the cursor
     i = i>0 ? i:0;  //ensure 0 or more
 
     // Switch based on input
     switch (input) {
         case '\b':
         case BACKSPACE:
-            glo->TERMINAL_IN[--i] = 0;
+            glo->terminal_in[--i] = 0;
             return 'n';
         case '\n':
         case '\r':
-            glo->TERMINAL_IN[++i] = 0;    //terminate the buffer here
+            glo->terminal_in[++i] = 0;    //terminate the buffer here
             return 'y';
         default:
-            if (i < bufflen - 3) glo->TERMINAL_IN[i] = input;
+            if (i < bufflen - 3) glo->terminal_in[i] = input;
             else {
-                glo->ERRORS++;
-                strncpy(glo->TERMINAL_OUT, "\n\rERROR: STR OVF\n\r", sizeof(glo->TERMINAL_OUT));
-                memset(glo->TERMINAL_IN, 0, sizeof(glo->TERMINAL_IN));
+                strncpy(glo->terminal_out, "\n\rERROR: BFR OVF\n\r", sizeof(glo->terminal_out));
+                memset(glo->terminal_in, 0, sizeof(glo->terminal_in));
                 return 'e';
             }
             return 'n';
@@ -110,83 +131,68 @@ char ProcInp(char input, size_t bufflen, GLOBAL *glo){
 /*
     modifies OUTPUT with formatted string of all the supported commands
 */
-void HelpCMD(char* INPUT, char* OUTPUT, size_t buffer_size, const CMD COMMANDS[], size_t num_cmds) {
-    size_t i;
+void HelpCMD(char* INPUT, global *glo) {
+    size_t i=0;
     INPUT = strtok(NULL, " -\n\r"); //update input token - Protected because -help MUST be in the string currently
 
     // process just -help
     if (INPUT == NULL) {
         //Define local vars
-        const char MSG[] = "\n\rCommands currently supported:\n\r";
-        int32_t space_left = buffer_size - strlen(MSG) - 1; // Account for newline and null-terminator
+        const char MSG[] = "\n\rAvailable Commands:\n\r";
+        int32_t space_left = sizeof(glo->terminal_out) - strlen(MSG) - 1; // Account for newline and null-terminator
 
         if (space_left <= 1) {
-            OUTPUT[0] = '\0';
+            glo->terminal_out[0] = '\0';
             return;
         }
-        strcpy(OUTPUT, MSG);
-
+        strcpy(glo->terminal_out, MSG);
         //itterate through commands and add them to the buffer
-        for (i = 0; i < num_cmds && space_left > 0; i++) {
-            int32_t chars_written = snprintf(OUTPUT + strlen(OUTPUT), space_left,
+        for (i = 0; i < SUPPORTED && space_left > 0; i++) {
+            int32_t chars_written = snprintf(glo->terminal_out + strlen(glo->terminal_out), space_left,
                                          "\t%-8s | %s\n\r",
-                                         COMMANDS[i].name,
-                                         COMMANDS[i].description);
+                                         glo->COMMANDS[i].name,
+                                         glo->COMMANDS[i].description);
 
             space_left = (chars_written >= 0 && chars_written < space_left) ? space_left - chars_written : 0;
         }
-        // Ensure null-termination
-        OUTPUT[buffer_size - 1] = '\0';
+        glo->terminal_out[sizeof(glo->terminal_out) - 1] = 0;
     }
     // process certain commands
     else {
         // Define local vars
-        const char MSG[] = "\n\rHelp Output:\n\r";
-        int32_t space_left = buffer_size - strlen(MSG) - 3; // Account for newline and null-terminator
+        const char MSG[] = "\n\rHelp Menu:\n\r";
+        int32_t space_left = sizeof(glo->terminal_out) - strlen(MSG) - 3; // Account for newline and null-terminator
 
         if (space_left <= 1) {
-            OUTPUT[0] = '\0';
+            glo->terminal_out[0] = '\0';
             return;
         }
+        strcpy(glo->terminal_out, MSG);
+        //itterate through commands and add them to the buffer
+        while (INPUT != NULL){
+            for (i = 0; i < SUPPORTED && space_left > 0; i++) {
+                if (strstr(glo->COMMANDS[i].name, INPUT)){
+                    int32_t chars_written = snprintf(glo->terminal_out + strlen(glo->terminal_out), space_left,
+                                                 "\t%-8s | %s\n\r",
+                                                 glo->COMMANDS[i].name,
+                                                 glo->COMMANDS[i].description);
 
-        char temp[space_left];
-        strcpy(OUTPUT, MSG);
-
-        // Iterate through tokens
-        while (INPUT != NULL && space_left > 0) {
-            // Prepend '-' to the token
-            snprintf(temp, space_left, "-%s", INPUT);
-
-            // Call the ReturnCommandIndex function for the modified token
-            i = ReturnCommandIndex(temp, COMMANDS, num_cmds);
-
-            // Ensure i exists
-            if (i>=num_cmds){
-                // Get the next token
-                INPUT = strtok(NULL, " -\n\r");
-                continue;
+                    space_left = (chars_written >= 0 && chars_written < space_left) ? space_left - chars_written : 0;
+                }
             }
-            // Add the command information into the output
-            int32_t chars_written = snprintf(OUTPUT + strlen(OUTPUT), space_left,
-                                                     "\t%-8s | %s\n\r",
-                                                     COMMANDS[i].name,
-                                                     COMMANDS[i].description);
-            space_left = (chars_written >= 0 && chars_written < space_left) ? space_left - chars_written : 0;
-            // Get the next token
             INPUT = strtok(NULL, " -\n\r");
         }
-        // Ensure null-termination
-        OUTPUT[buffer_size - 1] = 0;
+        glo->terminal_out[sizeof(glo->terminal_out) - 1] = 0;
     }
 }
 
 /*
     search for the passed string in the commands const and return the index of found command, returns len+1 over if not found
 */
-size_t ReturnCommandIndex(char *str, const CMD COMMANDS[], size_t num_cmds){
+size_t ReturnCommandIndex(char *str, global *glo, size_t num_cmds){
     size_t i;
     for (i = 0; i < num_cmds; i++){
-        if (strncmp(str, COMMANDS[i].name, MAXLEN)==0){
+        if (strncmp(str, glo->COMMANDS[i].name, MAXLEN)==0){
             break;
         }
     }
@@ -203,18 +209,6 @@ void PrintAbout(char* OUTPUT, size_t buffer_size) {
                             "\n\r\tDate | Time: %13s | %s"
                             "\n\r\tVersion: %9.1f"
                             "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.2, 2,"Expanding the instruction base");
-
-    // Ensure null-termination
-    OUTPUT[buffer_size - space_left - (size_t)chars_made-1] = '\0';
-}
-
-/*
- *  Print error information
- */
-void PrintERR(char* OUTPUT, size_t buffer_size, ERROR err) {
-    //Define local vars
-    size_t space_left = buffer_size - 2; // Account for newline and null-terminator
-    int chars_made = snprintf(OUTPUT, space_left, "\n\rERROR %d: %s\n\r", err.code, err.msg);
 
     // Ensure null-termination
     OUTPUT[buffer_size - space_left - (size_t)chars_made-1] = '\0';
@@ -242,7 +236,7 @@ void PrintCMD (char *buffer, char result[], size_t len) {
 }
 
 /* Memr command called */
-void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) {
+void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, error* err) {
     addrHex = strtok(NULL, " \n\r"); //update the token after -memr
 
     uint32_t memaddr;   // actual memory location
@@ -263,7 +257,7 @@ void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) 
     else {
         if (space_left < 3) {
             strncpy(OUTPUT, "\n\r\0", 3);   // newline
-            ERRCounter++;
+            err->count++;
             return;
         }
         strncpy(OUTPUT, MSG, space_left);   // copy the message into the output
@@ -289,10 +283,8 @@ void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, uint32_t ERRCounter) 
         return;
 
     MEMERR:
-        ERRCounter++;
+        err->count++;
         addrHex[16] = 0;    // ensure null termination of Hex value
         snprintf(OUTPUT, bufflen, "Hex address %s out of allowable range. Use -help memr to see range.\n\r", addrHex);
     }
 }
-
-
