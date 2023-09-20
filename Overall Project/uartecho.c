@@ -48,26 +48,39 @@ void *mainThread(void *arg0){
 
                 // CLI CMD mapping
                 if (token != NULL) {
+                    //about cmd
                     if (!strcmp(token, "-about")) {
                         PrintAbout(glo.terminal_out, sizeof(glo.terminal_out));
                         UART_write(glo.uart, glo.terminal_out, strlen(glo.terminal_out));
                     }
+                    //help cmd
                     else if (!strcmp(token, "-help")) {
                         HelpCMD(token, &glo);
                         UART_write(glo.uart, glo.terminal_out, strlen(glo.terminal_out));
                     }
+                    //print cmd
                     else if (!strcmp(token, "-print")) {
                         PrintCMD(token, glo.terminal_out, sizeof(glo.terminal_out));
                         UART_write(glo.uart, glo.terminal_out, strlen(glo.terminal_out));
                     }
+                    //memr cmd
                     else if (!strcmp(token, "-memr")) {
                         MemrCMD(token, glo.terminal_out, sizeof(glo.terminal_out), &BADMEM);
                         UART_write(glo.uart, glo.terminal_out, strlen(glo.terminal_out));
                     }
+                    //gpio cmd
+                    else if(!strcmp(token, "-gpio")){
+                        GPIOCMD(token, &glo, &BADCMD);
+                        UART_write(glo.uart, glo.terminal_out, strlen(glo.terminal_out));
+                    }
+                    //errors cmd
+                    else if(!strcmp(token, "-error")){
+                        PrintErrs(token, &glo);
+                    }
                     else {
                         if (strlen(token)) {
                             BADCMD.count++;  //increase the errors occurred in operations
-                            UART_write(glo.uart, "Error: Command not supported\n\r", sizeof("Error: Command not supported\n\r"));
+                            UART_write(glo.uart, "Command not recognized\n\r", sizeof("Command not recognized\n\r"));
                         }
                     }
                 }
