@@ -79,7 +79,7 @@ void ParseBuf(char payload[], uint32_t lenPayload)
         }
         //memr cmd
         else if (!strncmp(message, "-memr", strlen("-memr"))) {
-            MemrCMD(message);
+            MemrCMD(message, glo.terminal_out, sizeof(glo.terminal_out), &BADMEM);
         }
         //gpio cmd
         else if(!strncmp(message, "-gpio", strlen("-gpio"))){
@@ -106,20 +106,21 @@ void ParseBuf(char payload[], uint32_t lenPayload)
         // remarks command
         else if (!strncmp(message, "-rem", strlen("-rem")))
             ;   // do nothing, but don't complain
-        //conditionals
-        else if (!strncmp(message, "-if", strlen("-if")))
-            condCMD(message);
+        // invalid command
         else
         {
             if (strlen(message))
-                ErrorOut(BADCMD, "Command not recognized");
+            {
+                BADCMD.count++;  //increase the errors occurred in operations
+                UART_write(glo.DEVICES.uart0, "Command not recognized\n\r", sizeof("Command not recognized\n\r"));
+            }
         }
     }
     memset(message, 0, MAXLEN); // clears the message, leaves payload intact
 }
 
 // Process the string coming in by walking to the next non whitespace.
-char *GetNxtStr(char *input, bool AllWhites)
+char *GetNxtStr(char * input, bool AllWhites)
 {
     char *token;
     if(input == NULL) return NULL;

@@ -19,9 +19,9 @@ void InitBios(void){
     biosblock.LSWSWI = swi1;
     biosblock.RSWSWI = swi2;
     biosblock.TickerSWI = swi3;
-    biosblock.CallbackGate = gateSwi0;      // gate for callbacks
-    biosblock.PayloadWriteGate = gateSwi1;  // gate for payloads
-    biosblock.MSGWriteGate = gateSwi2;      // gate for addbyte
-    biosblock.RegGate = gateSwi3;       // gate for
+    biosblock.CallbackGate = gateSwi0;      //gate for callbacks
+    biosblock.PayloadWriteGate = gateSwi1;  //gate for payloads
+    biosblock.MSGWriteGate = gateSwi2;      //gate for addbyte
+    biosblock.MSGReadGate = gateSwi3;
     biosblock.PayloadSem = PayLoadSem;
 }

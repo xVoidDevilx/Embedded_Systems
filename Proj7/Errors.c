@@ -24,14 +24,14 @@ error BADCMD = {
 error BADMEM = {
     .id = 2,
     .name = "Bad Memory",
-    .msg = "Attempted fatal memory reads",
+    .msg = "Attempted bad memory reads",
     .count = 0
 };
 
 error BADGPIO = {
     .id = 3,
     .name = "GPIO access ERR",
-    .msg = "Times illegal GPIO access occured",
+    .msg = "Times an illegal GPIO was accessed",
     .count = 0
 };
 
@@ -48,15 +48,6 @@ error BADMTH = {
     .msg = "Illegal -regs operations attempted",
     .count = 0
 };
-
-error SCRPTER = {
-     .id=6,
-     .name="Script Errors",
-     .msg="Script space/ifs reference errors",
-     .count=0
-};
-
-
 /* Print Errors to the console    -   Working*/
 void PrintErrs(char *INPUT){
     size_t i;
@@ -73,16 +64,4 @@ void PrintErrs(char *INPUT){
             glo.ERRORS[i]->count=0;
         }
     }
-}
-
-/**
- * Update the value within an error and echo some message back to the user
- */
-void ErrorOut(error ERR, char* details)
-{
-    ERR.count++;
-    System_snprintf(glo.terminal_out, sizeof(glo.terminal_out), "%s: %s\n\r", ERR.name, details);
-    glo.terminal_out[sizeof(glo.terminal_out)-1] = 0;   //ensure null termination
-    UART_write(glo.DEVICES.uart0, glo.terminal_out, strlen(glo.terminal_out));
-    memset(glo.terminal_out, 0, sizeof(glo.terminal_out));
 }

@@ -27,9 +27,9 @@
 #define NUMREG 32        // Number of supported registers
 
 //LOOP MACROS
-#define SUPPORTEDCMDS 13  // Total Commands Being supported by the system right now
+#define SUPPORTEDCMDS 12  // Total Commands Being supported by the system right now
 #define GPIO_USED 8       // Total GPIO expected for GPIO command
-#define ERRTYPES 7        // Supported Error Types in the System
+#define ERRTYPES 6        // Supported Error Types in the System
 
 //TIMER
 #define INIT_PERIOD 2500000 //2.5s
@@ -42,7 +42,7 @@ typedef struct _cmd {
 
 typedef struct _err {
     const uint32_t id;              // ID of the error
-    const char name[MAXLEN>>2];     // Pretty name
+    const char name[MAXLEN>>3];     // Pretty name
     const char msg[MAXLEN];         // Error message
     uint32_t count;                 // Times this error has occurred
 } error;
@@ -93,7 +93,13 @@ typedef struct _payloadQueue {
 }PQ;
 
 typedef struct _bios {
+    //Task_Handle UART0ReadTask;
+    //Task_Handle MessageTask;
+    //Task_Handle PayLoadLowP1;
+    //Task_Handle UART7ReadTask;
+    //Task_Handle ADCStreamTask;
     Semaphore_Handle UART0ReadSem;
+    //Semaphore_Handle RegSem;
     Semaphore_Handle PayloadSem;
     //Semaphore_Handle ADCbufSem;
     //Semaphore_Handle UDPOutSem;
@@ -110,7 +116,6 @@ typedef struct _bios {
     GateSwi_Handle PayloadWriteGate;
     GateSwi_Handle MSGReadGate;
     GateSwi_Handle MSGWriteGate;
-    GateSwi_Handle RegGate;
     //GateSwi_Handle IfQWriteGate;
     //GateSwi_Handle UDPOutWriteGate;
 } bios;
@@ -136,7 +141,7 @@ typedef struct _global
     const uint32_t integrity;       // Checking build
 
     char terminal_out[MAXLEN<<2];       // 1024 Char output max
-    char scripts[NUMSCRIPTS][MAXLEN];  // Give a script space to quickly add payloads to the queue
+    char scripts[NUMSCRIPTS][MAXLEN>>2];  // Give a script space to quickly add payloads to the queue
     devices DEVICES;
     bios* BIOS;                     // Structure of BIOS handles
 
@@ -159,10 +164,9 @@ void ParseBuf(char payload[], uint32_t lenPayload);                     // Parse
 void HelpCMD(char* INPUT);                                              // Print available commands
 void PrintAbout(char* OUTPUT, size_t buffer_size);                      // Print system information
 void PrintCMD (char buffer[], char result[], size_t len);               // Echo to console some string
-void MemrCMD(char *addrHex); // Access a mem location and view hex data
+void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, error* err); // Access a mem location and view hex data
 void GPIOCMD(char* INPUT);                                              // Take an input, process its meaning, and handle GPIO
 void PrintErrs(char* INPUT);                                            // Print errors involved with the system
-void ErrorOut(error ERR, char* details);                                // Error out during a function call
 void InitBios(void);                                                    // Init Bios devices (semaphores, gates, etc)
 void CallbackCMD(char *input, char *output, size_t outLen);             // HWI, SWI, callbacks structs
 void TimerCMD(char *input);                                             // Reconfigure timer properties
@@ -172,7 +176,6 @@ void TickerCMD(char *input);                                            // Add a
 void RegCMD(char *input);                                               // Math operations with registers
 int32_t ExtractLitSrc (char * token);                                   // Helper function
 void ScriptCMD(char *input);                                            // Script payload funciton
-void condCMD(char * input);                                             // Function to handle conditional payloads
 //Callback Prototypes
 void Timer0Callback(Timer_Handle TimerHandle, int_fast16_t status);     // Callback at timer interrupt
 void Timer1Callback(Timer_Handle TimerHandle, int_fast16_t status);     // Callback at timer interrupt

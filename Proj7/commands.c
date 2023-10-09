@@ -6,15 +6,99 @@
 
 #include "GoodFortune.h"
 
-//Extern errors
-extern error BFROVF;
-extern error BADCMD;
-extern error BADMEM;
-extern error BADGPIO;
-extern error QUEOVF;
 extern error BADMTH;
-extern error SCRPTER;
+extern error BADCMD;
 
+/* Command Declarations */
+cmd aboutCMD = {
+    .name = "-about",
+    .description = "Get information about the program currently running.\n\r"
+};
+
+cmd helpCMD = {
+    .name = "-help",
+    .description = "Display available commands & their descriptions.\n\r"
+};
+
+cmd printCMD = {
+    .name = "-print",
+    .description = "Echo a string back to console.\n\r"
+};
+
+cmd memrCMD = {
+    .name = "-memr",
+    .description = "Read memory contents and echo to terminal\n\r"
+            "\t\t\t0x00000000-0x000FFFFF: FLASH\n\r"
+            "\t\t\t0x20000000-0x2003FFFF: SRAM\n\r"
+            "\t\t\t0x40000000-0x44054FFF: Peripherals\n\r"
+};
+cmd gpioCMD = {
+    .name = "-gpio",
+    .description = "Read, write, or toggle GPIO pins: -gpio [pin] [flag] [values]\n\r"
+            "\t\t\tgpio 0-3: D1-D4\n\r"
+            "\t\t\tgpio 4: PK5\n\r"
+            "\t\t\tgpio 5: PD4\n\r"
+            "\t\t\tgpio 6: Left Switch\n\r"
+            "\t\t\tgpio 7: Right Switch\n\r"
+};
+cmd errorCMD = {
+    .name = "-error",
+    .description = "Printing the user faults since startup. -error c to clear.\n\r"
+};
+
+cmd timerCMD = {
+    .name = "-timer",
+    .description = "Configure the timer period (microseconds)\n\r"
+            "\t\t\t-timer [>=100us period]\n\r"
+            "\t\t\t-timer 0 to stop\n\r"
+};
+
+cmd callbackCMD = {
+    .name = "-callback",
+    .description = "configure callback: -callback [0-3] [times] [payload]\n\r"
+            "\t\t\tCallback 0: timer\n\r"
+            "\t\t\tCallback 1: LSW\n\r"
+            "\t\t\tCallback 2: RSW\n\r"
+};
+
+cmd tickerCMD = {
+    .name = "-ticker",
+    .description = "Conf. tickers 0-15: -ticker [i] [del] [prd] [cnt] [payload]\n\r"
+            "\t\t\tTicker every 10ms: del * 10 ms => prd x 10ms\n\r"
+            "\t\t\t-ticker c|clear: clear the tickers\n\r"
+            "\t\t\ti = index | del = delay | prd = period | cnt = count\n\r"
+};
+
+cmd regCMD = {
+    .name = "-regs",
+    .description = "Perform basic operations with memory. i=dst\n\r"
+            "\t\t\t-regs [i] [#lit/src/op] [#lit/src] [op]\n\r"
+            "\t\t\t-regs [i] [#lit/src] : copy values into i\n\r"
+            "\t\t\tSupported OPs:\n\r"
+            "\t\t\t +  : Add |  -   : Sub/Neg\n\r"
+            "\t\t\t *  : Mul |  /   : Div\n\r"
+            "\t\t\t $  : ExC | [~!] : Not\n\r"
+            "\t\t\t ++ : Inc | --   : Dec\n\r"
+            "\t\t\t ^  : XOR |  |   : OR\n\r"
+            "\t\t\t &  : AND |  =   : CPY\n\r"
+            "\t\t\t >  : MAX |  <   : MIN\n\r"
+};
+
+cmd remCMD = {
+    .name = "-rem",
+    .description = "Leaves a comment; Doesn't execute; Doesn't complain\n\r"
+};
+
+cmd scriptCMD = {
+    .name = "-script",
+    .description = "Load a script space with a payload, or execute a script space.\n\r"
+            "\t\t\t-script [id] [payload/flag]\n\r"
+            "\t\t\tflags: r=read index X|x=execute\n\r"
+            "\t\t\tflags: c=clear index C=clear space\n\r"
+            "\t\t\tflags: R=read space\n\r"
+            "\t\t\tScripts execute until null space\n\r"
+            "\t\t\t64 Script spaces are available...\n\r"
+};
 /////////////////////////////////////////////Functions in the system/////////////////////////////////////////////////
 
 // Prints supported commands and details to the screen - Working!!!
@@ -71,7 +155,7 @@ void PrintAbout(char* OUTPUT, size_t buffer_size) {
     int chars_made = snprintf(OUTPUT, space_left, "\r\n\tEngineer: %20s"
                             "\n\r\tDate | Time: %13s | %s"
                             "\n\r\tVersion: %9.1f"
-                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.8, 8,"Conditionals");
+                            "\n\r\tAssignment %d: %12s\n\r", "Silas Rodriguez",__DATE__, __TIME__, 0.7, 7,"Scripts");
 
     // Ensure null-termination
     OUTPUT[buffer_size - space_left - (size_t)chars_made-1] = '\0';
@@ -93,39 +177,61 @@ void PrintCMD (char *buffer, char result[], size_t len) {
 }
 
 // Read a memory location and print contents of surrounding space   -  Working!!!
-void MemrCMD(char *addrHex) {
+void MemrCMD(char *addrHex, char OUTPUT[], size_t bufflen, error* err) {
     addrHex = GetNxtStr(addrHex, true); //update the token after -memr
 
     uint32_t memaddr;   // actual memory location
     int32_t value;      // value in address
     char *ptr;          // string part of addrHex
+    OUTPUT[bufflen - 1] = 0;    // ensure null
     const char MSG[] = "\n\rMEMR:\n\r";
-    UART_write(glo.DEVICES.uart0, MSG, strlen(MSG));
-    if (addrHex == NULL)
+    int32_t space_left = bufflen - strlen(OUTPUT) - strlen(MSG);
+
+    if (addrHex == NULL) {
         memaddr = 0; // default memspace
+    }
 
     memaddr = 0xFFFFFFF0 & strtol(addrHex, &ptr, 16);   // MASK LS bits to print 16 bytes of data
     if (memaddr > 0x100000 && memaddr < 0x20000000) goto MEMERR;    // too high for flash, too low for SRAM
     else if (memaddr > 0x20040000 && memaddr < 40000000) goto MEMERR;  // too high for SRAM too low for peripheral
     else if (memaddr > 0x44055000) goto MEMERR; // above peripherals
     else {
+        if (space_left < 3) {
+            strncpy(OUTPUT, "\n\r\0", 3);   // newline
+            err->count++;
+            return;
+        }
+        strncpy(OUTPUT, MSG, space_left);   // copy the message into the output
         int i;
+
         // Single loop to add addresses and values
         for (i = 0; i <= 0xF; i+=4) {
+            // Add the address to the OUTPUT string if there's enough space
+            space_left = bufflen - strlen(OUTPUT);
+            if (space_left <= 0) {
+                break;  // No more space in the OUTPUT buffer
+            }
+            snprintf(OUTPUT + strlen(OUTPUT), space_left, "Address 0x%08X: ", memaddr + i);
+
+            // Add the value to the same line
+            space_left = bufflen - strlen(OUTPUT);
+            if (space_left <= 0) {
+                break;  // No more space in the OUTPUT buffer
+            }
             // Get memaddr + i location, type cast to 32-bit
             value = *(int32_t *)(memaddr + i);
-            // Add the address to the output string
-            snprintf(glo.terminal_out, sizeof(glo.terminal_out), "Address 0x%08X: 0x%08x\n\r", memaddr + i, value);
-            // write out
-            UART_write(glo.DEVICES.uart0, glo.terminal_out, strlen(glo.terminal_out));
+            snprintf(OUTPUT + strlen(OUTPUT), space_left, "%08X\n\r", value);
         }
-        memset(glo.terminal_out,0, sizeof(glo.terminal_out));
+        UART_write(glo.DEVICES.uart0, OUTPUT, strlen(OUTPUT));
+        memset(OUTPUT, 0 , sizeof(OUTPUT));
         return;
 
     MEMERR:
+        err->count++;
         addrHex[16] = 0;    // ensure null termination of Hex value
-        System_snprintf(glo.terminal_out, sizeof(glo.terminal_out), "Hex address %s out of allowable range", addrHex);
-        ErrorOut(BADMEM, glo.terminal_out);
+        System_snprintf(OUTPUT, bufflen, "Hex address %s out of allowable range. Use -help memr to see range.\n\r", addrHex);
+        UART_write(glo.DEVICES.uart0, OUTPUT, strlen(OUTPUT));
+        memset(OUTPUT, 0 , sizeof(OUTPUT));
     }
 }
 
@@ -164,7 +270,6 @@ void CallbackCMD(char *input, char *output, size_t outLen)
     {
         // Invalid callback index, return an error message
         snprintf(output, outLen, "Invalid callback index. Must be between 0 and %zu\n\r", NUMCALLBACKS - 1);
-        ErrorOut(BADGPIO, output);
         return;
     }
 
@@ -232,7 +337,7 @@ void TimerCMD(char *input) {
     }
     else if(period_us < 100)    //from testing, <100 us is perty scurry
     {
-        ErrorOut(BADGPIO, "Invalid timer period value");
+        UART_write(glo.DEVICES.uart0, "Invalid timer period value\n\r", sizeof("Invalid timer period value\n\r"));
         return;
     }
 
@@ -242,7 +347,7 @@ void TimerCMD(char *input) {
         Timer_stop(glo.DEVICES.timer0); //stop the timer
         if (Timer_setPeriod(glo.DEVICES.timer0, Timer_PERIOD_US, (uint32_t)period_us) != Timer_STATUS_SUCCESS)
         {
-            ErrorOut(BADGPIO, "Failed to configure timer");
+            UART_write(glo.DEVICES.uart0, "Failed to configure timer\n\r", sizeof("Failed to configure timer\n\r"));
             return;
         }
         Timer_start(glo.DEVICES.timer0);    //restart the timer
@@ -371,8 +476,7 @@ void RegCMD(char *input)
 {
     char * token = GetNxtStr(input, true); // [i] [litsrc/op] [litsrc] [op]
     size_t i = 0;
-    int32_t gatekey;
-    gatekey = GateSwi_enter(glo.BIOS->RegGate);
+
     // print register values and exit
     if(token == NULL)
     {
@@ -385,7 +489,6 @@ void RegCMD(char *input)
             UART_write(glo.DEVICES.uart0, glo.terminal_out, strlen(glo.terminal_out));
         }
         memset(glo.terminal_out, 0, sizeof(glo.terminal_out));
-        GateSwi_leave(glo.BIOS->RegGate, gatekey);
         return;
     }
     //reset registers
@@ -395,7 +498,6 @@ void RegCMD(char *input)
             glo.REGISTERS[i] = 0;
 
         UART_write(glo.DEVICES.uart0, "Registers Cleared Sucessfully\n\r", strlen("Registers Cleared Sucessfully\n\r"));
-        GateSwi_leave(glo.BIOS->RegGate, gatekey);
         return;
     }
     // Parse for a dst
@@ -412,7 +514,6 @@ void RegCMD(char *input)
                                      glo.REGISTERS[reginx]);
         UART_write(glo.DEVICES.uart0, glo.terminal_out, strlen(glo.terminal_out));
         memset(glo.terminal_out, 0, sizeof(glo.terminal_out));
-        GateSwi_leave(glo.BIOS->RegGate, gatekey);
         return;
     }
 
@@ -425,9 +526,9 @@ void RegCMD(char *input)
     // parse for operation - or another number
     endptr = strchr(token, ' '); // look for the next space
     uint32_t index=0;
+    int32_t litsrc0=0, litsrc1=0;
     char *ptr;
     index = atoi(token);    // get the index of the register
-
     if (endptr == NULL)
     {
         switch (*token)
@@ -460,8 +561,8 @@ void RegCMD(char *input)
             default:
                 if (index >= NUMREG)
                 {
-                    ErrorOut(BADMTH, "Invalid Register Access");
-                    GateSwi_leave(glo.BIOS->RegGate, gatekey);
+                    BADMTH.count++;
+                    UART_write(glo.DEVICES.uart0, "Invalid Register Access\n\r", strlen("Invalid Register Access\n\r"));
                     return;
                 }
                 glo.REGISTERS[reginx] = glo.REGISTERS[index];   //copy the register directly
@@ -483,15 +584,15 @@ void RegCMD(char *input)
             case '$':
             case '&':
             case '|':
-                ErrorOut(BADMTH, "Invalid Single Reg OP");
-                GateSwi_leave(glo.BIOS->RegGate, gatekey);
+                BADMTH.count++;
+                UART_write(glo.DEVICES.uart0, "Invalid Single Reg OP\n\r", strlen("Invalid Single Reg OP\n\r"));
                 return;
         }
         goto REGEXIT;   //print updated value
     }
     //Get the litsrc we first expect
-    int32_t litsrc0=0, litsrc1=0;
-    litsrc0 = ExtractLitSrc(token);
+    else
+        litsrc0 = ExtractLitSrc(token);
 
     token = GetNxtStr(token, true);            // walk to next string space - [litsrc] / [op]
     // Determine if [litsrc] [op] or error
@@ -522,8 +623,8 @@ void RegCMD(char *input)
         case '&':
         case '|':
         case '~':
-            ErrorOut(BADMTH, "Invalid Single litsrc OP");
-            GateSwi_leave(glo.BIOS->RegGate, gatekey);
+            BADMTH.count++;
+            UART_write(glo.DEVICES.uart0, "Invalid Single litsrc OP\n\r", strlen("Invalid Single litsrc OP\n\r"));
             return;
         default:
             break;
@@ -531,8 +632,9 @@ void RegCMD(char *input)
     }
     else
     {
-        ErrorOut(BADMTH, "Expected Litsrc");
-        GateSwi_leave(glo.BIOS->RegGate, gatekey);
+        BADMTH.count++;
+        const char MSG[] = "Expected Litsrc\n\r";
+        UART_write(glo.DEVICES.uart0, MSG, strlen(MSG));
         return;
     }
     // Get the litsrc:
@@ -541,10 +643,13 @@ void RegCMD(char *input)
     token = GetNxtStr(token, true); // walk to the OP [op]
     if(token == NULL)
     {
-        ErrorOut(BADMTH, "Missing Operation");
-        GateSwi_leave(glo.BIOS->RegGate, gatekey);
+        BADMTH.count++;
+        const char MSG[] = "Missing Operation\n\r";
+        UART_write(glo.DEVICES.uart0, MSG, strlen(MSG));
         return;
     }
+
+
 
     // There was a space, apply the operator:
     switch(*token)
@@ -565,8 +670,8 @@ void RegCMD(char *input)
         case '/':
             if (litsrc1 == 0)
             {
-                ErrorOut(BADMTH, "Cannot Div by 0");
-                GateSwi_leave(glo.BIOS->RegGate, gatekey);
+                UART_write(glo.DEVICES.uart0, "Cannot Div by 0\n\r", strlen("Cannot Div by 0\n\r"));
+                BADMTH.count++;
                 return;
             }
             glo.REGISTERS[reginx] = litsrc0 / litsrc1;
@@ -579,8 +684,8 @@ void RegCMD(char *input)
         case '%':
             if (litsrc1 == 0)
             {
-                ErrorOut(BADMTH, "Cannot Div by 0");
-                GateSwi_leave(glo.BIOS->RegGate, gatekey);
+                UART_write(glo.DEVICES.uart0, "Cannot Div by 0\n\r", strlen("Cannot Div by 0\n\r"));
+                BADMTH.count++;
                 return;
             }
             glo.REGISTERS[reginx] = litsrc0 % litsrc1;
@@ -603,8 +708,9 @@ void RegCMD(char *input)
             break;
         //not a valid operation
         default:
-            ErrorOut(BADMTH, "Invalid 2 litsrc Operation");
-            GateSwi_leave(glo.BIOS->RegGate, gatekey);
+            BADMTH.count++;
+            const char MSG[] = "Invalid 2 litsrc Operation\n\r";
+            UART_write(glo.DEVICES.uart0, MSG, strlen(MSG));
             return;
     }
     goto REGEXIT;
@@ -654,7 +760,9 @@ int32_t ExtractLitSrc (char * token)
         case '|':
         case '!':
         case '~':
-            ErrorOut(BADMTH, "Expected Litsrc");
+            BADMTH.count++;
+            const char MSG[] = "Expected Litsrc\n\r";
+            UART_write(glo.DEVICES.uart0, MSG, strlen(MSG));
             break;
     }
     return litsrc;
@@ -694,7 +802,8 @@ void ScriptCMD(char *input)
 
         if (i >= NUMSCRIPTS)
         {
-            ErrorOut(SCRPTER, "Invalid script space");
+            BADCMD.count++;
+            UART_write(glo.DEVICES.uart0, "ERROR: not supported script space access\n\r", strlen("ERROR: not supported script space access\n\r"));
             return;
         }
         // read the expected script by default
@@ -706,11 +815,6 @@ void ScriptCMD(char *input)
     // there was a space after id - copy the id, move to space
     strncpy(cpymsg, token, endptr-token);   // this gets the ID
     i = atoi(cpymsg);                       // get the ID of the script
-    if (i >= NUMSCRIPTS)
-    {
-        ErrorOut(SCRPTER, "Invalid script space");
-        return;
-    }
     token = GetNxtStr(token, true);         // walks to the next space: [payload/flags]
 
     //process payloads or flags:
@@ -718,15 +822,12 @@ void ScriptCMD(char *input)
     {
         // execute script space
         case 'X':
+        case 'x':
             while(*glo.scripts[i] != 0)
             {
                 AddPayload(glo.scripts[i]);
                 i++;
             }
-            break;
-        // execute a script index
-        case 'x':
-            AddPayload(glo.scripts[i]);
             break;
         // read script space
         case 'R':
@@ -756,125 +857,13 @@ void ScriptCMD(char *input)
         // add payload (no flag)
         case '-':
             strncpy(glo.scripts[i], token, strlen(token));    // copy the payload in
-            glo.scripts[i][sizeof(glo.scripts[i])-1] = 0;     //ensure null termination
+            glo.scripts[i][(MAXLEN>>2)-1] = 0;                //ensure null termination
             break;
         // default error - not a valid payload or flag
         default:
-            ErrorOut(SCRPTER, "Error, invalid flag or payload provided");
+            BADCMD.count++;
+            UART_write(glo.DEVICES.uart0, "Error, invalid flag or payload provided. Payloads start with -\n\r",
+                       strlen("Error, invalid flag or payload provided. Payloads start with -\n\r"));
             break;
-    }
-}
-
-/**
- * Conditional payload processor function/ take an input conditional, and assign a payload based on its result
- */
-void condCMD (char * input)
-{
-    char *token = GetNxtStr(input, true);       // [cond] ? [true]:[false] => [cond] = [litsrc0] <cmp> [litsrc1]
-
-    // If -if is called by itself, print a help for -if for usage
-    if (token == NULL)
-    {
-        HelpCMD("-help if");
-        return;
-    }
-    // extract litsrc 0 , cmp, and litsrc 1
-    int32_t litsrc0=0, litsrc1=0;
-    char cmp;
-
-    litsrc0 = ExtractLitSrc(token);
-    token = GetNxtStr(token, true);   //walk over
-    if (token == NULL)
-    {
-        ErrorOut(SCRPTER, "Conditional missing cond: [<,=,>]");
-        return;
-    }
-    // check for appropriate comparitor
-    switch (*token)
-    {
-        case '<':
-            cmp = '<';
-            break;
-        case '>':
-            cmp = '>';
-            break;
-        case '=':
-            cmp = '=';
-            break;
-        // error out
-        default:
-            ErrorOut(SCRPTER, "Invalid condition: [<,=,>]");
-            return;
-    }
-    token = GetNxtStr(token,true);   //walk over to litsrc 1
-    if (token == NULL)
-    {
-        ErrorOut(SCRPTER, "Missing second operand");
-        return;
-    }
-    litsrc1 = ExtractLitSrc(token); // get the litsrc otherwise - all operands acquired
-    token = GetNxtStr(token, true); // go to ?
-    if (*token != '?')
-    {
-        ErrorOut(SCRPTER, "Missing ternary op '?'");
-        return;
-    }
-    token = GetNxtStr(token, true);     // walk to payload 1
-    if (token == NULL)
-    {
-        ErrorOut(SCRPTER, "Missing payloads");
-        return;
-    }
-
-    char *ptr = strchr(token, ':'); //get semicolon sep
-    if (ptr == NULL)
-    {
-        ErrorOut(SCRPTER, "Missing payloads delim ':'");
-        return;
-    }
-
-    char payloadt[MAXLEN]={0}, payloadf[MAXLEN]={0};
-    strncpy(payloadt, token, ptr-token);
-    payloadt[MAXLEN-1] = 0;         // ensure null termination
-
-    token = ++ptr;                  // move to delim + 1
-    token = GetNxtStr(token, true); // move the token along
-
-    // try to check for valid payloads
-    if(*ptr=='-')
-        strncpy(payloadf, ptr, strlen(ptr));
-    else if (*token=='-')
-        strncpy(payloadf, token, strlen(token));
-    else
-        payloadf[0]=0;
-
-    payloadf[MAXLEN-1] = 0; //ensure null termination
-
-    // payloadt/f extracted: can map condtitional statements
-    switch(cmp)
-    {
-    case '<':
-        if (litsrc0 < litsrc1)
-            AddPayload(payloadt);
-        else
-            AddPayload(payloadf);
-        break;
-    case '>':
-        if (litsrc0 > litsrc1)
-            AddPayload(payloadt);
-        else
-            AddPayload(payloadf);
-        break;
-    case '=':
-        if (litsrc0 == litsrc1)
-            AddPayload(payloadt);
-        else
-            AddPayload(payloadf);
-        break;
-    // error out - shouldnt be here, cmp got changed
-    default:
-        //Log conditional error
-        ErrorOut(SCRPTER, "FATAL: cmp overwritten");
-        return;
     }
 }
