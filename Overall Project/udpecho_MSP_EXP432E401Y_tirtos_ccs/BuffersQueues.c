@@ -68,7 +68,7 @@ void ParseBuf(char payload[], uint32_t lenPayload)
     {
         //about cmd
         if (!strncmp(message, "-about", strlen("-about"))) {
-            PrintAbout(glo.terminal_out, sizeof(glo.terminal_out));
+            PrintAbout();
         }
         //help cmd
         else if (!strncmp(message, "-help", strlen("-help"))) {
@@ -127,13 +127,14 @@ void ParseBuf(char payload[], uint32_t lenPayload)
             VoiceCMD(message);
         else if(!strncmp(message, "-stream", strlen("-stream")))
             StreamCMD(message);
+        else if(!strncmp(message, "-netudp", strlen("-netudp")))
+            NetUDPCmd(message, 0);
         else
         {
             if (strlen(message))
                 ErrorOut(&BADCMD, "Command not recognized");
         }
     }
-    memset(message, 0, MAXLEN); // clears the message, leaves payload intact
 }
 
 // Process the string coming in by walking to the next non whitespace.

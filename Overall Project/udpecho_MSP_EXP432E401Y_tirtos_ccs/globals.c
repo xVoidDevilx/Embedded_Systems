@@ -11,7 +11,7 @@ extern error SCRPTER;
 extern error ADCERR;
 extern error VoiceERR;
 extern error StreamERR;
-
+extern error NETERR;
 //Extern gpio
 extern gpio PIN0;
 extern gpio PIN1;
@@ -161,6 +161,12 @@ cmd voiceCMD = {
      .name= "-voice",
      .description = "VOIP\n\r"
 };
+
+cmd netCMD = {
+     .name= "-netudp",
+     .description = "Transmit a UDP packet\n\r"
+             "\t\t\t-netudp [ip]:[port] [command]"
+};
 /*   Global Struct Declaration   */
 global glo = {
               .integrity = 0xB00B1E5,   //mature, right?
@@ -202,7 +208,7 @@ void GlobalConfig(global *glo, UART_Handle uart0, UART_Handle uart7,Timer_Handle
     glo->COMMANDS[i++] = &strmCMD;
     glo->COMMANDS[i++] = &audioCMD;
     glo->COMMANDS[i++] = &voiceCMD;
-
+    glo->COMMANDS[i++] = &netCMD;
     i = 0;
     //Organize GPIO
     glo->PINS[i++] = &PIN0;
@@ -226,6 +232,7 @@ void GlobalConfig(global *glo, UART_Handle uart0, UART_Handle uart7,Timer_Handle
     glo->ERRORS[i++] = &ADCERR;
     glo->ERRORS[i++] = &VoiceERR;
     glo->ERRORS[i++] = &StreamERR;
+    glo->ERRORS[i++] = &NETERR;
     //Organize callbacks
     glo->callbacks[0] = &CB0;
     glo->callbacks[1] = &CB1;

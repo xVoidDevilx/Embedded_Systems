@@ -3,6 +3,7 @@
 //Semaphores & Swi
 extern Semaphore_Handle PayLoadSem;
 extern Semaphore_Handle ADCBufSem;
+extern Semaphore_Handle UDPOutSem;
 extern Swi_Handle swi0;
 extern Swi_Handle swi1;
 extern Swi_Handle swi2;
@@ -25,4 +26,6 @@ void InitBios(void){
     biosblock.MSGWriteGate = gateSwi2;      // gate for addbyte
     biosblock.PayloadSem = PayLoadSem;
     biosblock.ADCBufSem = ADCBufSem;
+    biosblock.UDPOutSem = UDPOutSem;
+    biosblock.UDPOutWriteGate = gateSwi3;
 }

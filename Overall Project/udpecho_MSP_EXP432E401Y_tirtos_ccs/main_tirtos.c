@@ -26,8 +26,8 @@ extern void ti_ndk_config_Global_startupFxn();
 int main(void)
 {
     Board_init();
-    ti_ndk_config_Global_startupFxn();
     InitializeDrivers();
+    ti_ndk_config_Global_startupFxn();
     BIOS_start();
     return (0);
 }

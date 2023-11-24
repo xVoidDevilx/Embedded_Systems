@@ -77,7 +77,7 @@ error SCRPTER = {
 
 error ADCERR = {
      .id=7,
-     .name="ADC Conversion Error",
+     .name="ADC Error",
      .msg="Various Audio Stream errors",
      .count=0
 };
@@ -95,6 +95,14 @@ error StreamERR = {
      .msg="Various Stream errors",
      .count=0
 };
+
+error NETERR = {
+     .id=10,
+     .name="Network Error",
+     .msg= "Errors involving network",
+     .count=0
+};
+
 /* Print Errors to the console    -   Working*/
 void PrintErrs(char *INPUT){
     size_t i;
@@ -119,7 +127,7 @@ void PrintErrs(char *INPUT){
 void ErrorOut(error *ERR, char* details)
 {
     ERR->count++;
-    System_snprintf(glo.terminal_out, sizeof(glo.terminal_out), "%s: %s\n\r", ERR->name, details);
+    System_snprintf(glo.terminal_out, sizeof(glo.terminal_out), "\n\r%s: %s\n\r", ERR->name, details);
     glo.terminal_out[sizeof(glo.terminal_out)-1] = 0;   //ensure null termination
     UART_write(glo.DEVICES.uart0, glo.terminal_out, strlen(glo.terminal_out));
     memset(glo.terminal_out, 0, sizeof(glo.terminal_out));

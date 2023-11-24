@@ -134,7 +134,7 @@ void TSKADCStream (void *arg0)
             ErrorOut(&ADCERR, "RX ping and RX Pong are bad" );
             return;
         }
-        if(glo.REGISTERS[IP_ADDR_REG] == 0)
+        if(glo.SHADOWS[IP_SHADOW_REG] == 0)
         {
             sprintf(longload, "-voice %d 128  ", dest_choice);
             hdrlen = strlen(longload)+1;
@@ -144,12 +144,12 @@ void TSKADCStream (void *arg0)
         else
         {
             sprintf(longload, "-netudp %d.%d.%d.%d -voice %d 128  ",
-                    (uint8_t) (glo.REGISTERS[IP_ADDR_REG]>>24) & 0xFF, (uint8_t) (glo.REGISTERS[IP_ADDR_REG]>>16) & 0xFF,
-                    (uint8_t) (glo.REGISTERS[IP_ADDR_REG]>>8) & 0xFF, (uint8_t) (glo.REGISTERS[IP_ADDR_REG]) & 0xFF,
+                    (uint8_t) (glo.SHADOWS[IP_SHADOW_REG]>>24) & 0xFF, (uint8_t) (glo.SHADOWS[IP_SHADOW_REG]>>16) & 0xFF,
+                    (uint8_t) (glo.SHADOWS[IP_SHADOW_REG]>>8) & 0xFF, (uint8_t) (glo.SHADOWS[IP_SHADOW_REG]) & 0xFF,
                     dest_choice);
             hdrlen = strlen(longload)+1;
             memcpy(&longload[hdrlen], source, sizeof(uint16_t) * DATABLOCKSIZE);
-//            NetUDPCMD(longload, sizeof(uint16_t) * DATABLOCKSIZE);
+            NetUDPCmd(longload, sizeof(uint16_t) * DATABLOCKSIZE);
         }
     }
 }

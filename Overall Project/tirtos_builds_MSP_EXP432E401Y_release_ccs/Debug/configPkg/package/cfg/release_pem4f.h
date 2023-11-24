@@ -52,6 +52,12 @@ extern const ti_sysbios_knl_Semaphore_Handle ADCBufSem;
 #include <ti/sysbios/knl/Swi.h>
 extern const ti_sysbios_knl_Swi_Handle swi4;
 
+#include <ti/sysbios/knl/Semaphore.h>
+extern const ti_sysbios_knl_Semaphore_Handle UDPOutSem;
+
+#include <ti/sysbios/gates/GateSwi.h>
+extern const ti_sysbios_gates_GateSwi_Handle gateSwi3;
+
 #include <ti/sysbios/gates/GateMutex.h>
 extern const ti_sysbios_gates_GateMutex_Handle tiposix_mqGate;
 

@@ -30,12 +30,14 @@
 #define NUMREG 32        // Number of supported registers
 #define ADCCOUNT 2       // Number of running ADCs
 #define DATABLOCKSIZE 128
-#define IP_ADDR_REG 0
+#define IP_SHADOW_REG 0
 //LOOP MACROS
-#define SUPPORTEDCMDS 19   // Total Commands Being supported by the system right now
+#define SUPPORTEDCMDS 20   // Total Commands Being supported by the system right now
 #define GPIO_USED 8        // Total GPIO expected for GPIO command
-#define ERRTYPES 10        // Supported Error Types in the System
+#define ERRTYPES 11        // Supported Error Types in the System
 #define LUTSIZE 256
+#define UDPPORT 1000
+
 //TIMER
 #define INIT_PERIOD 2500000 //2.5s
 
@@ -107,14 +109,14 @@ typedef struct _messageQueue {
 typedef struct _payloadQueue {
     int32_t PayloadReading;             //Which Payload is being read
     int32_t PayloadWriting;             //which payload is being written
-    //int32_t BinaryCount[QUEUELEN];    //?
+    int32_t BinaryCount[QUEUELEN];      // Network Queue Stuff
     char payloads[QUEUELEN][MAXLEN];    //Payloads to be processed
 }PQ;
 
 typedef struct _bios {
     Semaphore_Handle PayloadSem;
     Semaphore_Handle ADCBufSem;
-    //Semaphore_Handle UDPOutSem;
+    Semaphore_Handle UDPOutSem;
     //Semaphore_Handle UDPLaunchSem;
     //Semaphore_Handle UDPInSem;
     //Swi_Handle ComparatorSWI;
@@ -129,7 +131,7 @@ typedef struct _bios {
     GateSwi_Handle MSGReadGate;
     GateSwi_Handle MSGWriteGate;
     //GateSwi_Handle IfQWriteGate;
-    //GateSwi_Handle UDPOutWriteGate;
+    GateSwi_Handle UDPOutWriteGate;
 } bios;
 
 typedef struct _bufctrl
@@ -176,9 +178,11 @@ typedef struct _global
     lutctrl LUTctrl;
     Callback *callbacks[NUMCALLBACKS];
     PQ PayloadQueue;
+    PQ netOutQueue;
     Message UartMsg;
     TICKER tickers[NUMTICKERS];      // array of tickers and commands
     int32_t REGISTERS[NUMREG];       // array of registers
+    int32_t SHADOWS[NUMREG];         // shadow registers
     cmd *COMMANDS[SUPPORTEDCMDS];    // Supported commands
     gpio *PINS[GPIO_USED];           // A list of gpio pins
     error *ERRORS[ERRTYPES];         // Error types in the system
@@ -191,7 +195,7 @@ void GlobalConfig(global *glo, UART_Handle uart0, UART_Handle uart7,Timer_Handle
 char UartAddByte(char input);                                           // Take inputs from UART, place into a buffer
 void ParseBuf(char payload[], uint32_t lenPayload);                     // Parser to map strings to commands
 void HelpCMD(char* INPUT);                                              // Print available commands
-void PrintAbout(char* OUTPUT, size_t buffer_size);                      // Print system information
+void PrintAbout();                      // Print system information
 void PrintCMD (char *message);                                          // Echo to console some string
 void MemrCMD(char *addrHex); // Access a mem location and view hex data
 void GPIOCMD(char* INPUT);                                              // Take an input, process its meaning, and handle GPIO
@@ -213,6 +217,7 @@ void clearCMD ();                                                       // Clear
 void AudioCMD(char *message);                                           // audio stream command
 void StreamCMD(char * message);                                         // audio stream
 void VoiceCMD (char * payload);                                         // command for voice
+void NetUDPCmd(char *message, int32_t binaryCount);                     // Call netUDP to write out a packet
 
 //Callback Prototypes
 void Timer0Callback(Timer_Handle TimerHandle, int_fast16_t status);     // Callback at timer interrupt
