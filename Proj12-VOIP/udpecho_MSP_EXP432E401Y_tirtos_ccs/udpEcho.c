@@ -345,27 +345,29 @@ void Dial(char *message)
 
     // extract the IP address we intend to call
     token = GetNxtStr(message, true);
-    if(!token)  // no IP provided, close the connection (hangup)
+
+    if(!token)  // no IP provided, close the connections (hangup both calls, if any)
     {
         if(glo.REGISTERS[SHADOW_DIAL_0_IP] != 0)
         {
+            // tell connected to hangup the call
             sprintf(netbuf, "-netudp %d.%d.%d.%d:%d",
                     (uint8_t)(glo.REGISTERS[SHADOW_DIAL_0_IP] >> 24)&0xFF, (uint8_t)(glo.REGISTERS[SHADOW_DIAL_0_IP] >> 16)&0xFF,
                     (uint8_t)(glo.REGISTERS[SHADOW_DIAL_0_IP] >> 8)&0xFF,(uint8_t)(glo.REGISTERS[SHADOW_DIAL_0_IP])&0xFF,
                        glo.REGISTERS[SHADOW_DIAL_0_PORT]);
             sprintf(txbuf, "%s -stream 0", netbuf);
             AddPayload(txbuf);
-            AddPayload("-stream 0");    // hangup my call
             sprintf(txbuf, "%s -regs %d #0", netbuf, SHADOW_DIAL_0_IP);  // no correction needed - reset
             AddPayload(txbuf);
         }
-        // clear the dialed register
-        glo.REGISTERS[SHADOW_DIAL_0_IP] = 0;
+        // clear the dialed registers
+        AddPayload("-stream 0");    // hangup my call
+        glo.REGISTERS[SHADOW_DIAL_0_IP] = glo.REGISTERS[SHADOW_DIAL_1_IP] = 0;
         glo.REGISTERS[SHADOW_DIAL_0_PORT] = DEFAULT_NET_PORT;
-        AddPayload("-stream 0");
         return;
     }
-    // view the register we called
+
+    // view the registers we called
     if(*token == 'r')
         goto PRINT_ADDR;
 
@@ -398,9 +400,14 @@ void Dial(char *message)
     sprintf(txbuf, "%s -stream 1", netbuf);   // setup proxy dial reg with my port
     AddPayload(txbuf);
     AddPayload("-stream 1");
+
 PRINT_ADDR:
     sprintf(txbuf, "-regs %d", SHADOW_DIAL_0_IP);
     AddPayload(txbuf);
     sprintf(txbuf, "-regs %d", SHADOW_DIAL_0_PORT);
+    AddPayload(txbuf);
+    sprintf(txbuf, "-regs %d", SHADOW_DIAL_1_IP);
+    AddPayload(txbuf);
+    sprintf(txbuf, "-regs %d", SHADOW_DIAL_1_PORT);
     AddPayload(txbuf);
 }
