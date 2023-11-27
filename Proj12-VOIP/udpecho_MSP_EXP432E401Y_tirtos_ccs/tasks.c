@@ -131,34 +131,25 @@ void TSKADCStream (void *arg0)
             ErrorOut(&ADCERR, "RX ping and RX Pong are bad" );
             return;
         }
-        if(glo.REGISTERS[IP_SHADOW_REG] == 0)
+        // if a network is missing on either endpoint, play local audio
+        if(glo.REGISTERS[IP_SHADOW_REG] == 0 || glo.REGISTERS[SHADOW_DIAL_0_IP]==0)
         {
             sprintf(longload, "-voice %d 128  ", dest_choice);
             hdrlen = strlen(longload)+1;
             memcpy(&longload[hdrlen], source, sizeof(uint16_t) * DATABLOCKSIZE);
             VoiceCMD(longload);
         }
+        // network detected on both endpoints, play incoming audio, send my audio over - have 2 endpoints from dial
         else
         {
             // I have a connection, send it to myself
             sprintf(longload, "-netudp %d.%d.%d.%d -voice %d 128  ",
-                    (uint8_t) (glo.REGISTERS[IP_SHADOW_REG]>>24) & 0xFF, (uint8_t) (glo.REGISTERS[IP_SHADOW_REG]>>16) & 0xFF,
-                    (uint8_t) (glo.REGISTERS[IP_SHADOW_REG]>>8) & 0xFF, (uint8_t) (glo.REGISTERS[IP_SHADOW_REG]) & 0xFF,
+                    (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>24) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>16) & 0xFF,
+                    (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>8) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]) & 0xFF,
                     dest_choice);
             hdrlen = strlen(longload)+1;
             memcpy(&longload[hdrlen], source, sizeof(uint16_t) * DATABLOCKSIZE);
             NetUDPCmd(longload, sizeof(uint16_t) * DATABLOCKSIZE);
-
-            // I have a dialed IP - send it there:
-            if(glo.REGISTERS[SHADOW_DIAL_0_IP] != 0)
-            {
-                sprintf(longload, "-netudp %d.%d.%d.%d -voice %d 128  ",
-                        (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>24) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>16) & 0xFF,
-                        (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>8) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]) & 0xFF,
-                        dest_choice);
-                hdrlen = strlen(longload)+1;
-                memcpy(&longload[hdrlen], source, sizeof(uint16_t) * DATABLOCKSIZE);
-            }
         }
     }
 }

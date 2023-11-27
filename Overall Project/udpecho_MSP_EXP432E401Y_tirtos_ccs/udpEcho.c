@@ -406,8 +406,4 @@ PRINT_ADDR:
     AddPayload(txbuf);
     sprintf(txbuf, "-regs %d", SHADOW_DIAL_0_PORT);
     AddPayload(txbuf);
-    sprintf(txbuf, "-regs %d", SHADOW_DIAL_1_IP);
-    AddPayload(txbuf);
-    sprintf(txbuf, "-regs %d", SHADOW_DIAL_1_PORT);
-    AddPayload(txbuf);
 }
