@@ -994,11 +994,12 @@ void VoiceCMD (char * payload)
     bufflen = atoi(loc);
     if (bufflen != DATABLOCKSIZE)
         VoiceERR.count++;
+
     loc = GetNxtStr(loc, false);
     loc++;
     loc++;
 
-    if(dest_choice ==0)
+    if(dest_choice == 0)
         dest = glo.TxRx.TX_Ping;
     else if (dest_choice == 1)
         dest = glo.TxRx.TX_Pong;
@@ -1088,9 +1089,9 @@ void StreamCMD(char * message)
         GPIOCMD("-gpio 4 w 0"); // speaker en
         GPIOCMD("-gpio 5 w 1"); // mic en
         TimerCMD("-timer 125"); // timer period set
+        CallbackCMD("-callback 0 -1 -audio");
         glo.DEVICES.adcbufctrl.converting = 1;
-        TickerCMD("-tickers 14 100 0 0 -stream 2");
-        TickerCMD("-tickers 15 110 0 0 -callback 0 -1 -audio");
+        TickerCMD("-tickers 15 105 0 0 -stream 2");
     }
     else if (intent == 2 && glo.DEVICES.adcbufctrl.converting == 1)
     {
@@ -1102,7 +1103,7 @@ void StreamCMD(char * message)
             glo.DEVICES.adcbufctrl.RX_completed = NULL;
             glo.DEVICES.adcbufctrl.TX_completed = NULL;
             glo.DEVICES.adcbufctrl.TX_index = -1;
-            glo.DEVICES.adcbufctrl.delay = DATADELAY;
+            glo.DEVICES.adcbufctrl.delay = DATADELAY; // how many samples to toss before playback
             glo.DEVICES.adcbufctrl.TX_correction = 0;
         }
     }
@@ -1114,27 +1115,33 @@ void AudioCMD(char *message)
     SPI_Transaction spiTrans;
     bool transferOK;
 
-    if(glo.DEVICES.adcbufctrl.TX_completed != NULL && glo.DEVICES.adcbufctrl.TX_index >=0
-            && glo.DEVICES.adcbufctrl.delay > 0)
+    if(glo.DEVICES.adcbufctrl.TX_completed != NULL) // valid buffer
     {
-        glo.DEVICES.adcbufctrl.delay--;
-        return;
-    }
-    outval = glo.DEVICES.adcbufctrl.TX_completed[glo.DEVICES.adcbufctrl.TX_index++];
+        if(glo.DEVICES.adcbufctrl.TX_index >=0)
+        {
+            if(glo.DEVICES.adcbufctrl.delay > 0)
+            {
+                glo.DEVICES.adcbufctrl.delay--; //throw away the first couple samples
+                return;
+            }
 
-    spiTrans.count = 1;
-    spiTrans.txBuf = (void *) &outval;
-    spiTrans.rxBuf = (void *) NULL;
+            outval = glo.DEVICES.adcbufctrl.TX_completed[glo.DEVICES.adcbufctrl.TX_index++];
 
-    transferOK = SPI_transfer(glo.DEVICES.spi3, &spiTrans);
-    glo.DEVICES.adcbufctrl.sample_count++;
-    if (!transferOK)
-        while (1);
+            spiTrans.count = 1;
+            spiTrans.txBuf = (void *) &outval;
+            spiTrans.rxBuf = (void *) NULL;
 
-    if(glo.DEVICES.adcbufctrl.TX_index >= DATABLOCKSIZE)
-    {
-        glo.DEVICES.adcbufctrl.TX_index = 0;
-        glo.DEVICES.adcbufctrl.TX_completed = glo.DEVICES.adcbufctrl.TX_completed == glo.TxRx.TX_Ping ? glo.TxRx.TX_Pong:glo.TxRx.TX_Ping;
+            transferOK = SPI_transfer(glo.DEVICES.spi3, &spiTrans);
+            glo.DEVICES.adcbufctrl.sample_count++;  // debug stuff
+            if (!transferOK)
+                while (1);
+
+            if(glo.DEVICES.adcbufctrl.TX_index >= DATABLOCKSIZE)
+            {
+                glo.DEVICES.adcbufctrl.TX_index = 0;    // loop back to first
+                glo.DEVICES.adcbufctrl.TX_completed = glo.DEVICES.adcbufctrl.TX_completed == glo.TxRx.TX_Ping ? glo.TxRx.TX_Pong:glo.TxRx.TX_Ping;
+            }
+        }
     }
 }   // end of audioCMD - HWI function
 

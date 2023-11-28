@@ -28,7 +28,6 @@ extern void *TaskSelf();
 extern error NETERR;
 
 char *UDPParse(char *buff, struct sockaddr_in *clientAddr); // UDP payload parser
-void NetToSpeaker();                           // take what's in the network buffer and play to the speaker
 
 /*
  *  Receives UDP packets.
@@ -397,7 +396,7 @@ void Dial(char *message)
     AddPayload(txbuf);
     sprintf(txbuf, "%s -regs %d #%d", netbuf, SHADOW_DIAL_0_PORT, glo.REGISTERS[PORT_SHADOW_REG]);   // setup proxy dial reg with my port
     AddPayload(txbuf);
-    sprintf(txbuf, "%s -stream 1", netbuf);   // setup proxy dial reg with my port
+    sprintf(txbuf, "%s -stream 1", netbuf);   // setup proxy to playback my audio and use their adc buf to me
     AddPayload(txbuf);
     AddPayload("-stream 1");
 

@@ -142,7 +142,7 @@ void TSKADCStream (void *arg0)
         // network detected on both endpoints, play incoming audio, send my audio over - have 2 endpoints from dial
         else
         {
-            // I have a connection, send it to myself
+            // I have a connection, send voice to them
             sprintf(longload, "-netudp %d.%d.%d.%d -voice %d 128  ",
                     (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>24) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>16) & 0xFF,
                     (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]>>8) & 0xFF, (uint8_t) (glo.REGISTERS[SHADOW_DIAL_0_IP]) & 0xFF,

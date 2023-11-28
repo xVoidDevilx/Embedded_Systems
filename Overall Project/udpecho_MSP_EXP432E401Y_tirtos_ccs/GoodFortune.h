@@ -37,7 +37,7 @@
 #define SHADOW_DIAL_0_PORT  29
 #define SHADOW_DIAL_1_IP    30
 #define SHADOW_DIAL_1_PORT  31
-#define DATADELAY           6
+#define DATADELAY           8
 
 //LOOP MACROS
 #define SUPPORTEDCMDS 21   // Total Commands Being supported by the system right now
