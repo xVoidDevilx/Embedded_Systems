@@ -978,12 +978,17 @@ void UartCMD(char * payload)
     }
 }
 
-/**/
+/*
+ * Modify stream going to speaker
+ * */
 void VoiceCMD (char * payload)
 {
     int32_t dest_choice, bufflen;
     uint16_t *dest;
     char *loc;
+    static int32_t last = -2;
+    static int32_t prevlast = -4;
+    int32_t current;
 
     loc = GetNxtStr(payload, true);
     if (loc == NULL)
@@ -1011,21 +1016,22 @@ void VoiceCMD (char * payload)
         glo.DEVICES.adcbufctrl.TX_completed = dest;
         glo.DEVICES.adcbufctrl.TX_index = 0;
     }
-//    // ask about these
-//    int32_t current = glo.DEVICES.adcbufctrl.TX_index;
-//    int32_t last = current - 1;
-//    int32_t prev = last - 1;
-//    if(last != current && prev != current)
-//    {
-//        prev = last;
-//        last = current;
-//        if(current >= DATABLOCKSIZE - DATADELAY + 4)
-//            glo.DEVICES.adcbufctrl.TX_correction = -1;
-//        else if (current <= DATABLOCKSIZE - DATADELAY - 4)
-//            glo.DEVICES.adcbufctrl.TX_correction = +1;
-//    }
+
+    current = glo.DEVICES.adcbufctrl.TX_index;
+    if(last != current && prevlast != current)
+    {
+        prevlast = last;
+        last = current;
+        if(current >= DATABLOCKSIZE - DATADELAY + 4)
+            glo.DEVICES.adcbufctrl.TX_correction = -1;
+        else if (current <= DATABLOCKSIZE - DATADELAY - 4)
+            glo.DEVICES.adcbufctrl.TX_correction = +1;
+    }
 }   // voice end
 
+/*
+ * Setup playback on device
+ */
 void StreamCMD(char * message)
 {
     char *token;
@@ -1109,42 +1115,49 @@ void StreamCMD(char * message)
     }
 }   // End of streamCMD
 
+/*
+ * Playback some audio stream
+ */
 void AudioCMD(char *message)
 {
-    uint16_t outval;
+    uint16_t outval = 0;
     SPI_Transaction spiTrans;
     bool transferOK;
 
-    if(glo.DEVICES.adcbufctrl.TX_completed != NULL) // valid buffer
+    if(glo.DEVICES.adcbufctrl.TX_completed != NULL
+            && glo.DEVICES.adcbufctrl.TX_index >= 0) // valid buffer
     {
-        if(glo.DEVICES.adcbufctrl.TX_index >=0)
+        if(glo.DEVICES.adcbufctrl.delay > 0)
         {
-            if(glo.DEVICES.adcbufctrl.delay > 0)
-            {
-                glo.DEVICES.adcbufctrl.delay--; //throw away the first couple samples
-                return;
-            }
+            glo.DEVICES.adcbufctrl.delay--; //throw away the first couple samples
+            return;
+        }
 
-            outval = glo.DEVICES.adcbufctrl.TX_completed[glo.DEVICES.adcbufctrl.TX_index++];
+        outval += glo.DEVICES.adcbufctrl.TX_completed[glo.DEVICES.adcbufctrl.TX_index++];
 
-            spiTrans.count = 1;
-            spiTrans.txBuf = (void *) &outval;
-            spiTrans.rxBuf = (void *) NULL;
+        glo.DEVICES.adcbufctrl.TX_index += glo.DEVICES.adcbufctrl.TX_correction;    // double play or skip some samples
+        glo.DEVICES.adcbufctrl.TX_correction = 0;   //reset the correction
 
-            transferOK = SPI_transfer(glo.DEVICES.spi3, &spiTrans);
-            glo.DEVICES.adcbufctrl.sample_count++;  // debug stuff
-            if (!transferOK)
-                while (1);
-
-            if(glo.DEVICES.adcbufctrl.TX_index >= DATABLOCKSIZE)
-            {
-                glo.DEVICES.adcbufctrl.TX_index = 0;    // loop back to first
-                glo.DEVICES.adcbufctrl.TX_completed = glo.DEVICES.adcbufctrl.TX_completed == glo.TxRx.TX_Ping ? glo.TxRx.TX_Pong:glo.TxRx.TX_Ping;
-            }
+        if(glo.DEVICES.adcbufctrl.TX_index >= DATABLOCKSIZE)
+        {
+            glo.DEVICES.adcbufctrl.TX_index = 0;    // loop back to first
+            glo.DEVICES.adcbufctrl.TX_completed = glo.DEVICES.adcbufctrl.TX_completed == glo.TxRx.TX_Ping ?
+                    glo.TxRx.TX_Pong:glo.TxRx.TX_Ping;
         }
     }
+    spiTrans.count = 1;
+    spiTrans.txBuf = (void *) &outval;
+    spiTrans.rxBuf = (void *) NULL;
+
+    transferOK = SPI_transfer(glo.DEVICES.spi3, &spiTrans);
+    glo.DEVICES.adcbufctrl.sample_count++;  // debug stuff
+    if (!transferOK)
+        while (1);
 }   // end of audioCMD - HWI function
 
+/*
+ * Write out a packet to the network using UDP protocol
+ */
 void NetUDPCmd(char *message, int32_t binaryCount)
 {
     char *token;
